@@ -1,0 +1,298 @@
+from PIL import Image
+import os
+import shutil
+import cv2
+#from jamo import h2j, j2hcj
+import matplotlib.pyplot as plt
+import numpy as np
+import re
+
+def PIL2OpenCV(pil_image):
+    numpy_image= np.array(pil_image)
+    opencv_image = cv2.cvtColor(numpy_image, cv2.COLOR_RGB2BGR)
+    return opencv_image
+'''
+hangul_to_english = {
+    'ㄱ' : 'r', 'ㄴ' : 's', 'ㄷ' : 'e', 'ㄹ' : 'f',
+    'ㅁ' : 'a', 'ㅂ' : 'q', 'ㅅ' : 't', 'ㅇ' : 'd',
+    'ㅈ' : 'w', 'ㅊ' : 'c', 'ㅋ' : 'z', 'ㅌ' : 'x', 'ㅍ' : 'v', 'ㅎ' : 'g', 
+    'ㅏ' : 'k', 'ㅑ' : 'i', 'ㅓ' : 'j', 'ㅕ' : 'u',
+    'ㅗ' : 'h', 'ㅛ' : 'y', 'ㅜ' : 'n', 'ㅠ' : 'b', 'ㅡ' : 'm', 'ㅣ' : 'l', 
+    'ㄲ' : 'R', 'ㄸ' : 'E', 'ㅃ' : 'Q', 'ㅆ' : 'T', 'ㅉ' : 'W',
+    'ㄳ' : 'rt', 'ㄵ' : 'sw', 'ㄶ' : 'sg', 'ㄺ' : 'fr',
+    'ㄻ' : 'fa', 'ㄼ' : 'fq', 'ㄽ' : 'ft', 'ㄾ' : 'fx',
+    'ㄿ' : 'fv', 'ㅀ' : 'fg', 'ㅄ' : 'qt', 
+    'ㅐ' : 'o', 'ㅒ' : 'O', 'ㅔ' : 'p', 'ㅖ' : 'P',
+    'ㅘ' : 'hk', 'ㅙ' : 'ho', 'ㅚ' : 'hl', 'ㅝ' : 'nj',
+    'ㅞ' : 'np', 'ㅟ' : 'nl', 'ㅢ' : 'ml'
+}
+
+def han2en(hangul_string):#안씀.
+    english_string = ''
+    for char in hangul_string:
+        if char in hangul_to_english:
+            english_string += hangul_to_english[char]
+        else:
+            english_string += char
+    return english_string
+'''
+
+def convert2pychess(fen):
+    fen = fen.replace('w ','w - - ').replace('b ','b - - ').replace('H','N').replace('h','n').replace('E','B').replace('e','b')
+    return fen
+
+def slice_image(image_path, rows, columns):
+    # 이미지 열기
+    img = Image.open(image_path)
+    width, height = img.size
+
+    # 잘라낼 이미지의 크기 계산
+    slice_width = width // columns
+    slice_height = height // rows
+
+    slices = []
+    for row in range(rows):
+        for col in range(columns):
+            # 잘라낼 영역의 좌표 계산
+            left = col * slice_width
+            upper = row * slice_height
+            right = left + slice_width
+            lower = upper + slice_height
+
+            # 이미지 잘라내기
+            slice_img = img.crop((left, upper, right, lower))
+            slices.append(slice_img)
+
+    return slices
+
+def find_piece(image, template_path, i2=0):
+    #image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    for i in range(0,i2+1):
+        
+        # 이미지와 템플릿 로드
+        template = cv2.imread(template_path[i], cv2.IMREAD_GRAYSCALE)
+
+        # 이미지에서 템플릿 매칭 수행
+        result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+        # 매칭된 위치에서 임계값보다 큰 값이 있는지 확인
+        threshold = 0.8  # 임계값 (0과 1 사이의 값)
+        if max_val > threshold:
+            return template_path[i].split("_")[1][0]  # 매칭된 패턴이 있음
+        if i == i2:
+            return 'm'  # 매칭된 패턴이 없음
+
+def replacem(string, num=9):
+    repst = "m"*num
+    for i in range(num):
+        string = string.replace(repst[:num-i],f"{num-i}")
+    return(string)
+
+def delete_folder(folder_path):
+    # 해당 경로에 있는 폴더 삭제
+    try:
+        shutil.rmtree(folder_path)
+        print(f"폴더 '{folder_path}'와 내부의 모든 파일이 삭제되었습니다.")
+    except FileNotFoundError:
+        print(f"폴더 '{folder_path}'를 찾을 수 없습니다.")
+    except OSError as e:
+        print(f"폴더와 파일 삭제 중 오류가 발생했습니다: {e}")
+
+def create_folder(folder_path):
+    # 해당 경로에 폴더 생성
+    try:
+        os.mkdir(folder_path)
+        print(f"폴더 '{folder_path}'가 생성되었습니다.")
+    except FileExistsError:
+        delete_folder(folder_path)# 폴더 삭제 함수 호출
+        print(f"폴더 '{folder_path}'를 재생성합니다.")
+        create_folder(folder_path)
+    except Exception as e:
+        print(f"폴더 생성 중 오류가 발생했습니다: {e}")
+
+def count_files_in_directory():
+    fpl = input("폴더 경로 : ").split(", ")
+    #fpl = folder_path_list
+    for i in range(len(fpl)):
+        try:
+            files = os.listdir("gibo_img/"+fpl[i])
+            fpl[i] = [fpl[i], len(files)]
+        except FileNotFoundError:
+            print(f"폴더 '{fpl}'를 찾을 수 없습니다.")
+        except Exception as e:
+            print(f"파일 개수 세기 중 오류가 발생했습니다: {e}")
+    return fpl, len(fpl)
+
+def save_file(content, file_path):
+    try:
+        with open(file_path, 'w') as file:
+            file.write(content)
+        print(f"입력된 내용이 '{file_path}' 파일로 저장되었습니다.")
+    except Exception as e:
+        print(f"파일 저장 중 오류가 발생했습니다: {e}")
+
+def find_changed_positions(old_fen, new_fen):
+    changed_positions = []
+    old_rows = old_fen.split()[0].split('/')
+    new_rows = new_fen.split()[0].split('/')
+    for i in range(len(old_rows)):
+        for j in range(len(old_rows[i])):
+            if old_rows[i][j] != new_rows[i][j]:
+                changed_positions.append((i, j, new_rows[i][j]))
+    return changed_positions
+
+def convert_to_pgn(cp):
+    abc = 'abcdefghi'
+    if cp[1][2] == 'm':
+        #pgn = cp[0][2].upper() + abc[cp[1][1]]+ str(9-cp[1][0]) + abc[cp[0][1]] + str(9-cp[0][0])
+        pgn = abc[cp[1][1]]+ str(9-cp[1][0]) + abc[cp[0][1]] + str(9-cp[0][0])
+    elif cp[0][2] == 'm':
+        #pgn = cp[1][2].upper() + abc[cp[0][1]]+ str(9-cp[0][0]) + abc[cp[1][1]] + str(9-cp[1][0])
+        pgn = abc[cp[0][1]]+ str(9-cp[0][0]) + abc[cp[1][1]] + str(9-cp[1][0])
+    else :
+        print("catch", end='')
+        print(cp)
+    return pgn
+
+def convert_to_gib(cp):
+    if cp[1][2] == 'm':
+        gib = str((cp[1][0]+1)%10) + str(cp[1][1]+1) +cp[0][2].upper() + str((cp[0][0]+1)%10) + str(cp[0][1]+1)
+    elif cp[0][2] == 'm':
+        gib = str((cp[0][0]+1)%10) + str(cp[0][1]+1) +cp[1][2].upper() + str((cp[1][0]+1)%10) + str(cp[1][1]+1)
+    return en2ko(gib)
+
+def en2ko(gib):
+    en = 'ACEHKPR'
+    ko = '사포상마장졸차'
+    for i in range(len(en)):
+        gib = gib.replace(en[i],ko[i])
+    return gib
+
+def restorem(string, num=9):
+    for i in range(1,num+1):
+        repst = "m"*i
+        string = string.replace(f'{i}',repst)
+    return(string)
+
+def gib_position(cp):
+    cp = cp.lower().replace("eh","상마").replace("he","마상")
+    kostr = re.sub(r"[^ㄱ-ㅣ가-힣]","",cp) # 한글만 남기기
+    cp = f'[초차림 "{kostr[4:]}"]\n[한차림 "{kostr[:4]}"]'
+    return cp
+
+
+chk = 1
+save = 0
+tmp = ''
+save = int(input("1.fen 저장\n저장하지 않고 진행\n : "))
+chk = int(input("1. pgn\n2. gib\n"))
+
+while chk==1 or chk==2 or chk==12:
+
+    name, fpnum = count_files_in_directory()
+    for _ in range(fpnum):
+        nameen = name[_][0].split('\\')[-1]# 입력된 한글 문자열namehan이었는데 테스트.
+        num = name[_][1]
+        #nameen = han2en(j2hcj(h2j(namehan)))
+        Opgn = '[Variant "janggicasual"]\n[VariantFamily "janggi"]\n'
+        Ogib = ''
+    
+        #바탕화면에서 이 파일을 실행했을 때는 문제 없지만, 다른 경로(셸 직송)에서 실행시 꼬이는 것 방지.
+        create_folder(f"tst/{nameen}")
+        if save == 1:
+        
+            create_folder(f"tst/{nameen}/fen")
+        
+        for i in range(1,num+1):
+
+            # 이미지 파일 경로 설정
+            image_path = f"gibo_img/{nameen}/img_{str(i).zfill(4)}.png"
+    
+            # 잘라낼 행과 열의 수 설정
+            rows = 10
+            columns = 9
+
+            # 이미지 잘라내기 함수 호출
+            sliced_images = slice_image(image_path, rows, columns)
+
+            piece_image_path =[
+            #'icon/resize/icon_M.jpg'
+            'icon/resize/icon_P.jpg', 'icon/resize/icon_p2.jpg', 
+            'icon/resize/icon_A.jpg', #'icon/resize/icon_a2.jpg',
+            'icon/resize/icon_C.jpg', 'icon/resize/icon_c2.jpg',
+            'icon/resize/icon_E.jpg', 'icon/resize/icon_e2.jpg', 
+            'icon/resize/icon_H.jpg', 'icon/resize/icon_h2.jpg', 
+            'icon/resize/icon_R.jpg', 'icon/resize/icon_r2.jpg',
+            'icon/resize/icon_K.jpg', 'icon/resize/icon_k2.jpg'
+            ]
+
+            # 잘라낸 이미지들을 저장
+            originfen = ''
+        
+            for i2, image in enumerate(sliced_images):
+                originfen += find_piece(cv2.cvtColor(PIL2OpenCV(image), cv2.COLOR_RGB2GRAY), piece_image_path, 13)
+                if (i2+2)%9 == 1 and i2!=89:
+                    originfen+="/"
+            if 'k' in originfen[0:30]:#코드 간결성을 위해 넓은 범위 탐색함..
+                originfen = originfen[0:30].replace('A','a') + originfen[30:]
+            else :
+                originfen = originfen[0:-30] + originfen[-30:].replace('A', 'a')
+                originfen = originfen[::-1]# 초를 아래로 고정하는 코드.
+        
+            if i==1:
+                tmp = originfen
+                if chk == 1 or chk ==12:
+                    Opgn += f'[FEN "{replacem(originfen)} w 0 1"]'
+                if chk == 2 or chk ==12:
+                    Ogib += gib_position(tmp)
+        
+            if tmp == originfen and i!=1:
+                pgn = '@@@@'
+                gib = '한수쉼'
+                if i%2 != 1:
+                    Opgn += f'\n{i//2}.'
+                Opgn += ' ' + pgn
+                Ogib += f'\n{(i-1)}. {gib}'
+            elif i!=1:
+                changed_positions = find_changed_positions(tmp, originfen)
+                if chk == 1 or chk ==12:
+                    pgn = convert_to_pgn(changed_positions)
+                if chk == 2 or chk ==12:
+                    gib = convert_to_gib(changed_positions)
+                if chk == 1 or chk ==12:
+                    if i%2 != 1:
+                        Opgn += f'\n{i//2}.'
+                        #print(f'\n{i//2}. ',end = '')
+                    #else :
+                        #Opgn += ' '
+                        #print(' ',end = '')
+                    Opgn += ' ' + pgn
+                    #print(pgn, end = '')
+                if chk == 2 or chk ==12:
+                    Ogib += f'\n{(i-1)}. {gib}'
+                    #print(f'\n{(i-1)}. ',end = '')
+                    #print(gib, end = '')
+            tmp = originfen
+        
+            if save ==1:
+                #fen 파일 저장. 그런데 오래 걸리니까 옵션으로 넣는 게 나을 듯?
+                #오래 걸리진 않고 그냥 반복문 자체 시간이 오래 걸리는 거였음.
+            
+                resultfen = replacem(originfen)
+            
+                if i%2 == 1:
+                    resultfen += " w 0 1"
+                else :
+                    resultfen += " b 1 1"
+                #resultfen = convert2pychess(resultfen)
+                fen_save_path = f"tst/{nameen}/fen/fen_{str(i).zfill(4)}.fen"
+                save_file(resultfen, fen_save_path)
+        if chk == 1 or chk ==12:
+            #print(Opgn)
+            save_file(Opgn, f"tst/{nameen}/{nameen}.pgn")
+        if chk == 2 or chk ==12:
+            #print(Ogib)
+            save_file(Ogib, f"tst/{nameen}/{nameen}.gib")
+    chk = int(input("\n\n1, 2 : 다른 파일 나누기(pgn, gib)\nelse : 종료\n"))
+    
