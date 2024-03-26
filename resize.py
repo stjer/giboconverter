@@ -1,10 +1,11 @@
 import cv2
-#import os
 #from PIL import Image
-#import shutil
-#import matplotlib.pyplot as plt
-#import numpy as np
-#import re
+'''
+일단 현재는 잘릴 부분 다 잘린 상태로 온다는 가정으로 짜인 코드라서 
+하단에 있는 four point transform 함수를 사용해서 이미지을 가져와야 오는 기능을 추가해야 함.
+
+'''
+
 
 #def OpenCV2PIL(opencv_image):
 #    color_coverted = cv2.cvtColor(opencv_image, cv2.COLOR_BGR2RGB)
@@ -12,12 +13,11 @@ import cv2
 #    return pil_image
 
 def find_piece(image, template_path, i2=0):
-    #image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
     for i in range(0,i2+1):
         
         # 이미지와 템플릿 로드
         template = cv2.imread(template_path[i], cv2.IMREAD_GRAYSCALE)
-        #template = template_path[i]
         
         # 이미지에서 템플릿 매칭 수행
         result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
@@ -31,6 +31,20 @@ def find_piece(image, template_path, i2=0):
         if i == i2:
             return 'm'  # 매칭된 패턴이 없음
 
+def replacem(string, num=9):
+    repst = "m"*num
+    for i in range(num):
+        string = string.replace(repst[:num-i],f"{num-i}")
+    return(string)
+
+def save_to_fen_file(content, file_path):
+    try:
+        with open(file_path, 'w') as file:
+            file.write(content)
+        print(f"입력된 내용이 '{file_path}' 파일로 저장되었습니다.")
+    except Exception as e:
+        print(f"파일 저장 중 오류가 발생했습니다: {e}")
+
 def slice_image(fname, piece):
     src = cv2.imread(fname)
     y, x, c = src.shape
@@ -41,11 +55,22 @@ def slice_image(fname, piece):
     for j in range(10):
         for i in range(9):
             #cv2.imwrite(f"tst/test2/{j}_{i}.jpg",image[(j*y//10):(j+1)*y//10, i*x//9:(i+1)*x//9])
-            result = find_piece(cv2.cvtColor(image[(j*y//10):(j+1)*y//10, i*x//9:(i+1)*x//9], cv2.COLOR_RGB2GRAY), piece, 12)
-            print(result, end = " ")
-            #cv2.imshow('', INTER_LINEAR[(j*y//10):(j+1)*y//10, i*x//9:(i+1)*x//9])
-        print()
-        
+            #result = find_piece(cv2.cvtColor(image[(j*y//10):(j+1)*y//10, i*x//9:(i+1)*x//9], cv2.COLOR_RGB2GRAY), piece, 12)
+            #print(result, end = " ")
+	    result += find_piece(cv2.cvtColor(image[(j*y//10):(j+1)*y//10, i*x//9:(i+1)*x//9], cv2.COLOR_RGB2GRAY), piece, 12)
+            
+        #print()
+        if j!= 9:
+	    result += '/'
+    if 'k' in result[0:30]:#코드 간결성을 위해 넓은 범위 탐색함..
+        result = result[0:30].replace('A','a') + result[30:]
+    else :
+        result = result[0:-30] + result[-30:].replace('A', 'a')
+        result = result[::-1]# 초를 아래로 고정하는 코드.
+    resultfen = replacem(result)
+    save_to_fen_file(resultfen+" w 0 1", fname.split('.')[0]+'w'+'.fen')
+    save_to_fen_file(resultfen+" b 1 1", fname.split('.')[0]+'b'+'.fen')
+
 piece_image_path =[
 'icon/resize/icon_A.jpg', #'icon/resize/icon_a2.jpg',
 'icon/resize/icon_C.jpg', 'icon/resize/icon_c2.jpg',
@@ -56,7 +81,7 @@ piece_image_path =[
 'icon/resize/icon_R.jpg', 'icon/resize/icon_r2.jpg'
 ]
 
-nameen = input("name : ").split(", ") #한글경로 오작동 확인.
+nameen = input("name : ").split(", ")
 
 for _ in range(len(nameen)):
     image_path = f"{nameen[_]}.png"
