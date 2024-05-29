@@ -11,6 +11,20 @@ def PIL2OpenCV(pil_image):
     numpy_image= np.array(pil_image)
     opencv_image = cv2.cvtColor(numpy_image, cv2.COLOR_RGB2BGR)
     return opencv_image
+
+def target(folder_path="gibo_img"):
+    # 주어진 경로의 모든 파일 목록 얻기
+    files = os.listdir(folder_path)
+    st = []
+    # 파일 목록 출력
+    print("폴더 내 파일 목록:")
+    for file in files:
+        if file[0] != "_":
+            print(file, end=', ')
+            st.append(file)
+    print('')
+    return st
+
 '''
 hangul_to_english = {
     'ㄱ' : 'r', 'ㄴ' : 's', 'ㄷ' : 'e', 'ㄹ' : 'f',
@@ -38,7 +52,8 @@ def han2en(hangul_string):#안씀.
 '''
 
 def convert2pychess(fen):
-    fen = fen.replace('w ','w - - ').replace('b ','b - - ').replace('H','N').replace('h','n').replace('E','B').replace('e','b')
+    #fen = fen.replace('w ','w - - ').replace('b ','b - - ').replace('H','N').replace('h','n').replace('E','B').replace('e','b')
+    fen = fen.replace(['w ', 'b ', 'H', 'h', 'E', 'e'],['w - - ', 'b - - ', 'N', 'n', 'B', 'b'])
     return fen
 
 def slice_image(image_path, rows, columns):
@@ -83,6 +98,18 @@ def find_piece(image, template_path, i2=0):
         if i == i2:
             return 'm'  # 매칭된 패턴이 없음
 
+def find_aaaa(image):
+    image = np.fromfile(image, np.uint8)
+    image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
+    template = cv2.imread('icon/resize/@@@@.png', cv2.IMREAD_GRAYSCALE)
+    res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+    threshold = 0.8
+    if max_val > threshold:
+        return '@'  # 매칭된 패턴이 있음
+    else:
+        return 'm'
+
 def replacem(string, num=9):
     repst = "m"*num
     for i in range(num):
@@ -111,8 +138,10 @@ def create_folder(folder_path):
     except Exception as e:
         print(f"폴더 생성 중 오류가 발생했습니다: {e}")
 
-def count_files_in_directory():
+def count_files_in_directory(st=[]):
     fpl = input("폴더 경로 : ").split(", ")
+    if fpl == ['0']:
+        fpl = st
     #fpl = folder_path_list
     for i in range(len(fpl)):
         try:
@@ -190,7 +219,8 @@ chk = int(input("1. pgn\n2. gib\n"))
 
 while chk==1 or chk==2 or chk==12:
 
-    name, fpnum = count_files_in_directory()
+    st = target()
+    name, fpnum = count_files_in_directory(st)
     for _ in range(fpnum):
         nameen = name[_][0].split('\\')[-1]# 입력된 한글 문자열namehan이었는데 테스트.
         num = name[_][1]
@@ -208,38 +238,44 @@ while chk==1 or chk==2 or chk==12:
 
             # 이미지 파일 경로 설정
             image_path = f"gibo_img/{nameen}/img_{str(i).zfill(4)}.png"
-    
-            # 잘라낼 행과 열의 수 설정
-            rows = 10
-            columns = 9
+            do = find_aaaa(image_path)
+            if do == '@':
+                print(f"기보에서 한수쉼이 발견되었습니다. \n{image_path}\n보정 필요.")
+                create_folder(f"tst/{nameen}_@@@@")
+                #originfen = tmp
+                break
+            else:    
+                # 잘라낼 행과 열의 수 설정
+                rows = 10
+                columns = 9
 
-            # 이미지 잘라내기 함수 호출
-            sliced_images = slice_image(image_path, rows, columns)
+                # 이미지 잘라내기 함수 호출
+                sliced_images = slice_image(image_path, rows, columns)
 
-            piece_image_path =[
-            #'icon/resize/icon_M.jpg'
-            'icon/resize/icon_P.jpg', 'icon/resize/icon_p2.jpg', 
-            'icon/resize/icon_A.jpg', #'icon/resize/icon_a2.jpg',
-            'icon/resize/icon_C.jpg', 'icon/resize/icon_c2.jpg',
-            'icon/resize/icon_E.jpg', 'icon/resize/icon_e2.jpg', 
-            'icon/resize/icon_H.jpg', 'icon/resize/icon_h2.jpg', 
-            'icon/resize/icon_R.jpg', 'icon/resize/icon_r2.jpg',
-            'icon/resize/icon_K.jpg', 'icon/resize/icon_k2.jpg'
-            ]
+                piece_image_path =[
+                #'icon/resize/icon_M.jpg'
+                'icon/resize/icon_P.jpg', 'icon/resize/icon_p2.jpg', 
+                'icon/resize/icon_A.jpg', #'icon/resize/icon_a2.jpg',
+                'icon/resize/icon_C.jpg', 'icon/resize/icon_c2.jpg',
+                'icon/resize/icon_E.jpg', 'icon/resize/icon_e2.jpg', 
+                'icon/resize/icon_H.jpg', 'icon/resize/icon_h2.jpg', 
+                'icon/resize/icon_R.jpg', 'icon/resize/icon_r2.jpg',
+                'icon/resize/icon_K.jpg', 'icon/resize/icon_k2.jpg'
+                ]
 
-            # 잘라낸 이미지들을 저장
-            originfen = ''
-        
-            for i2, image in enumerate(sliced_images):
-                originfen += find_piece(cv2.cvtColor(PIL2OpenCV(image), cv2.COLOR_RGB2GRAY), piece_image_path, 13)
-                if (i2+2)%9 == 1 and i2!=89:
-                    originfen+="/"
-            if 'k' in originfen[0:30]:#코드 간결성을 위해 넓은 범위 탐색함..
-                originfen = originfen[0:30].replace('A','a') + originfen[30:]
-            else :
-                originfen = originfen[0:-30] + originfen[-30:].replace('A', 'a')
-                originfen = originfen[::-1]# 초를 아래로 고정하는 코드.
-        
+                # 잘라낸 이미지들을 저장
+                originfen = ''
+            
+                for i2, image in enumerate(sliced_images):
+                    originfen += find_piece(cv2.cvtColor(PIL2OpenCV(image), cv2.COLOR_RGB2GRAY), piece_image_path, 12)
+                    if (i2+2)%9 == 1 and i2!=89:
+                        originfen+="/"
+                if 'k' in originfen[0:30]:#코드 간결성을 위해 넓은 범위 탐색함..
+                    originfen = originfen[0:30].replace('A','a') + originfen[30:]
+                else :
+                    originfen = originfen[0:-30] + originfen[-30:].replace('A', 'a')
+                    originfen = originfen[::-1]# 초를 아래로 고정하는 코드.
+            
             if i==1:
                 tmp = originfen
                 if chk == 1 or chk ==12:
@@ -274,7 +310,8 @@ while chk==1 or chk==2 or chk==12:
                     #print(f'\n{(i-1)}. ',end = '')
                     #print(gib, end = '')
             tmp = originfen
-        
+            
+            
             if save ==1:
                 #fen 파일 저장. 그런데 오래 걸리니까 옵션으로 넣는 게 나을 듯?
                 #오래 걸리진 않고 그냥 반복문 자체 시간이 오래 걸리는 거였음.
@@ -288,6 +325,9 @@ while chk==1 or chk==2 or chk==12:
                 #resultfen = convert2pychess(resultfen)
                 fen_save_path = f"tst/{nameen}/fen/fen_{str(i).zfill(4)}.fen"
                 save_file(resultfen, fen_save_path)
+            else:
+                print(f"\r{str(i).zfill(len(str(num)))}/{num}", end='')
+        print()
         if chk == 1 or chk ==12:
             #print(Opgn)
             save_file(Opgn, f"tst/{nameen}/{nameen}.pgn")
