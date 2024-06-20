@@ -2,7 +2,6 @@ from PIL import Image
 import os
 import shutil
 import cv2
-#from jamo import h2j, j2hcj
 import matplotlib.pyplot as plt
 import numpy as np
 import re
@@ -25,34 +24,7 @@ def target(folder_path="gibo_img"):
     print('')
     return st
 
-'''
-hangul_to_english = {
-    'ㄱ' : 'r', 'ㄴ' : 's', 'ㄷ' : 'e', 'ㄹ' : 'f',
-    'ㅁ' : 'a', 'ㅂ' : 'q', 'ㅅ' : 't', 'ㅇ' : 'd',
-    'ㅈ' : 'w', 'ㅊ' : 'c', 'ㅋ' : 'z', 'ㅌ' : 'x', 'ㅍ' : 'v', 'ㅎ' : 'g', 
-    'ㅏ' : 'k', 'ㅑ' : 'i', 'ㅓ' : 'j', 'ㅕ' : 'u',
-    'ㅗ' : 'h', 'ㅛ' : 'y', 'ㅜ' : 'n', 'ㅠ' : 'b', 'ㅡ' : 'm', 'ㅣ' : 'l', 
-    'ㄲ' : 'R', 'ㄸ' : 'E', 'ㅃ' : 'Q', 'ㅆ' : 'T', 'ㅉ' : 'W',
-    'ㄳ' : 'rt', 'ㄵ' : 'sw', 'ㄶ' : 'sg', 'ㄺ' : 'fr',
-    'ㄻ' : 'fa', 'ㄼ' : 'fq', 'ㄽ' : 'ft', 'ㄾ' : 'fx',
-    'ㄿ' : 'fv', 'ㅀ' : 'fg', 'ㅄ' : 'qt', 
-    'ㅐ' : 'o', 'ㅒ' : 'O', 'ㅔ' : 'p', 'ㅖ' : 'P',
-    'ㅘ' : 'hk', 'ㅙ' : 'ho', 'ㅚ' : 'hl', 'ㅝ' : 'nj',
-    'ㅞ' : 'np', 'ㅟ' : 'nl', 'ㅢ' : 'ml'
-}
-
-def han2en(hangul_string):#안씀.
-    english_string = ''
-    for char in hangul_string:
-        if char in hangul_to_english:
-            english_string += hangul_to_english[char]
-        else:
-            english_string += char
-    return english_string
-'''
-
-def convert2pychess(fen):
-    #fen = fen.replace('w ','w - - ').replace('b ','b - - ').replace('H','N').replace('h','n').replace('E','B').replace('e','b')
+def convert2pychess(fen):#liground 유저용
     fen = fen.replace(['w ', 'b ', 'H', 'h', 'E', 'e'],['w - - ', 'b - - ', 'N', 'n', 'B', 'b'])
     return fen
 
@@ -98,18 +70,6 @@ def find_piece(image, template_path, i2=0):
         if i == i2:
             return 'm'  # 매칭된 패턴이 없음
 
-def find_aaaa(image):
-    image = np.fromfile(image, np.uint8)
-    image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
-    template = cv2.imread('icon/resize/@@@@.png', cv2.IMREAD_GRAYSCALE)
-    res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-    threshold = 0.8
-    if max_val > threshold:
-        return '@'  # 매칭된 패턴이 있음
-    else:
-        return 'm'
-
 def replacem(string, num=9):
     repst = "m"*num
     for i in range(num):
@@ -139,6 +99,7 @@ def create_folder(folder_path):
         print(f"폴더 생성 중 오류가 발생했습니다: {e}")
 
 def count_files_in_directory(st=[]):
+    print("0을 입력시, 탐색된 폴더 전체를 변환합니다. 폴더 앞에 _를 붙이면 탐색에서 제외됩니다.")
     fpl = input("폴더 경로 : ").split(", ")
     if fpl == ['0']:
         fpl = st
@@ -174,10 +135,8 @@ def find_changed_positions(old_fen, new_fen):
 def convert_to_pgn(cp):
     abc = 'abcdefghi'
     if cp[1][2] == 'm':
-        #pgn = cp[0][2].upper() + abc[cp[1][1]]+ str(9-cp[1][0]) + abc[cp[0][1]] + str(9-cp[0][0])
         pgn = abc[cp[1][1]]+ str(9-cp[1][0]) + abc[cp[0][1]] + str(9-cp[0][0])
     elif cp[0][2] == 'm':
-        #pgn = cp[1][2].upper() + abc[cp[0][1]]+ str(9-cp[0][0]) + abc[cp[1][1]] + str(9-cp[1][0])
         pgn = abc[cp[0][1]]+ str(9-cp[0][0]) + abc[cp[1][1]] + str(9-cp[1][0])
     else :
         print("catch", end='')
@@ -222,13 +181,11 @@ while chk==1 or chk==2 or chk==12:
     st = target()
     name, fpnum = count_files_in_directory(st)
     for _ in range(fpnum):
-        nameen = name[_][0].split('\\')[-1]# 입력된 한글 문자열namehan이었는데 테스트.
+        nameen = name[_][0].split('\\')[-1]
         num = name[_][1]
-        #nameen = han2en(j2hcj(h2j(namehan)))
         Opgn = '[Variant "janggicasual"]\n[VariantFamily "janggi"]\n'
         Ogib = ''
     
-        #바탕화면에서 이 파일을 실행했을 때는 문제 없지만, 다른 경로(셸 직송)에서 실행시 꼬이는 것 방지.
         create_folder(f"tst/{nameen}")
         if save == 1:
         
@@ -237,45 +194,38 @@ while chk==1 or chk==2 or chk==12:
         for i in range(1,num+1):
 
             # 이미지 파일 경로 설정
-            image_path = f"gibo_img/{nameen}/img_{str(i).zfill(4)}.png"
-            do = find_aaaa(image_path)
-            if do == '@':
-                print(f"기보에서 한수쉼이 발견되었습니다. \n{image_path}\n보정 필요.")
-                create_folder(f"tst/{nameen}_@@@@")
-                #originfen = tmp
-                break
-            else:    
-                # 잘라낼 행과 열의 수 설정
-                rows = 10
-                columns = 9
+            image_path = f"gibo_img/{nameen}/img_{str(i).zfill(4)}.png"    
+            # 잘라낼 행과 열의 수 설정
+            rows = 10
+            columns = 9
 
-                # 이미지 잘라내기 함수 호출
-                sliced_images = slice_image(image_path, rows, columns)
+            # 이미지 잘라내기 함수 호출
+            sliced_images = slice_image(image_path, rows, columns)
 
-                piece_image_path =[
-                #'icon/resize/icon_M.jpg'
-                'icon/resize/icon_P.jpg', 'icon/resize/icon_p2.jpg', 
-                'icon/resize/icon_A.jpg', #'icon/resize/icon_a2.jpg',
-                'icon/resize/icon_C.jpg', 'icon/resize/icon_c2.jpg',
-                'icon/resize/icon_E.jpg', 'icon/resize/icon_e2.jpg', 
-                'icon/resize/icon_H.jpg', 'icon/resize/icon_h2.jpg', 
-                'icon/resize/icon_R.jpg', 'icon/resize/icon_r2.jpg',
-                'icon/resize/icon_K.jpg', 'icon/resize/icon_k2.jpg'
-                ]
+            piece_image_path =[
+            #'icon/resize/icon_M.jpg'
+            'icon/resize/icon_P.jpg', 'icon/resize/icon_p2.jpg', 
+            'icon/resize/icon_A.jpg', #'icon/resize/icon_a2.jpg',
+            'icon/resize/icon_C.jpg', 'icon/resize/icon_c2.jpg',
+            'icon/resize/icon_E.jpg', 'icon/resize/icon_e2.jpg', 
+            'icon/resize/icon_H.jpg', 'icon/resize/icon_h2.jpg', 
+            'icon/resize/icon_R.jpg', 'icon/resize/icon_r2.jpg',
+            'icon/resize/icon_K.jpg', 'icon/resize/icon_k2.jpg'
+            ]
 
-                # 잘라낸 이미지들을 저장
-                originfen = ''
-            
-                for i2, image in enumerate(sliced_images):
-                    originfen += find_piece(cv2.cvtColor(PIL2OpenCV(image), cv2.COLOR_RGB2GRAY), piece_image_path, 12)
-                    if (i2+2)%9 == 1 and i2!=89:
-                        originfen+="/"
-                if 'k' in originfen[0:30]:#코드 간결성을 위해 넓은 범위 탐색함..
-                    originfen = originfen[0:30].replace('A','a') + originfen[30:]
-                else :
-                    originfen = originfen[0:-30] + originfen[-30:].replace('A', 'a')
-                    originfen = originfen[::-1]# 초를 아래로 고정하는 코드.
-            
+            # 잘라낸 이미지들을 저장
+            originfen = ''
+        
+            for i2, image in enumerate(sliced_images):
+                originfen += find_piece(cv2.cvtColor(PIL2OpenCV(image), cv2.COLOR_RGB2GRAY), piece_image_path, 12)
+                if (i2+2)%9 == 1 and i2!=89:
+                    originfen+="/"
+            if 'k' in originfen[0:30]:#코드 간결성을 위해 넓은 범위 탐색함..
+                originfen = originfen[0:30].replace('A','a') + originfen[30:]
+            else :
+                originfen = originfen[0:-30] + originfen[-30:].replace('A', 'a')
+                originfen = originfen[::-1]# 초를 아래로 고정하는 코드.
+        
             if i==1:
                 tmp = originfen
                 if chk == 1 or chk ==12:
@@ -313,8 +263,7 @@ while chk==1 or chk==2 or chk==12:
             
             
             if save ==1:
-                #fen 파일 저장. 그런데 오래 걸리니까 옵션으로 넣는 게 나을 듯?
-                #오래 걸리진 않고 그냥 반복문 자체 시간이 오래 걸리는 거였음.
+                #fen 파일 저장. 
             
                 resultfen = replacem(originfen)
             
@@ -322,17 +271,15 @@ while chk==1 or chk==2 or chk==12:
                     resultfen += " w 0 1"
                 else :
                     resultfen += " b 1 1"
-                #resultfen = convert2pychess(resultfen)
+                #resultfen = convert2pychess(resultfen) #liground 유저는 각주해제해서 쓰세요.
                 fen_save_path = f"tst/{nameen}/fen/fen_{str(i).zfill(4)}.fen"
                 save_file(resultfen, fen_save_path)
             else:
                 print(f"\r{str(i).zfill(len(str(num)))}/{num}", end='')
         print()
         if chk == 1 or chk ==12:
-            #print(Opgn)
             save_file(Opgn, f"tst/{nameen}/{nameen}.pgn")
         if chk == 2 or chk ==12:
-            #print(Ogib)
             save_file(Ogib, f"tst/{nameen}/{nameen}.gib")
     chk = int(input("\n\n1, 2 : 다른 파일 나누기(pgn, gib)\nelse : 종료\n"))
     
