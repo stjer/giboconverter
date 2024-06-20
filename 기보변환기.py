@@ -203,7 +203,6 @@ while chk==1 or chk==2 or chk==12:
             sliced_images = slice_image(image_path, rows, columns)
 
             piece_image_path =[
-            #'icon/resize/icon_M.jpg'
             'icon/resize/icon_P.jpg', 'icon/resize/icon_p2.jpg', 
             'icon/resize/icon_A.jpg', #'icon/resize/icon_a2.jpg',
             'icon/resize/icon_C.jpg', 'icon/resize/icon_c2.jpg',
@@ -249,24 +248,14 @@ while chk==1 or chk==2 or chk==12:
                 if chk == 1 or chk ==12:
                     if i%2 != 1:
                         Opgn += f'\n{i//2}.'
-                        #print(f'\n{i//2}. ',end = '')
-                    #else :
-                        #Opgn += ' '
-                        #print(' ',end = '')
                     Opgn += ' ' + pgn
-                    #print(pgn, end = '')
                 if chk == 2 or chk ==12:
                     Ogib += f'\n{(i-1)}. {gib}'
-                    #print(f'\n{(i-1)}. ',end = '')
-                    #print(gib, end = '')
             tmp = originfen
             
-            
-            if save ==1:
-                #fen 파일 저장. 
+            if save ==1:#fen 파일 저장. 
             
                 resultfen = replacem(originfen)
-            
                 if i%2 == 1:
                     resultfen += " w 0 1"
                 else :
@@ -281,5 +270,5 @@ while chk==1 or chk==2 or chk==12:
             save_file(Opgn, f"tst/{nameen}/{nameen}.pgn")
         if chk == 2 or chk ==12:
             save_file(Ogib, f"tst/{nameen}/{nameen}.gib")
-    chk = int(input("\n\n1, 2 : 다른 파일 나누기(pgn, gib)\nelse : 종료\n"))
+    chk = int(input("\n\n1, 2, 12 : 다른 파일 나누기(pgn, gib)\nelse : 종료\n"))
     
