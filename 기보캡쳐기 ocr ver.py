@@ -93,7 +93,7 @@ def chkmode(imgP):
     tmpM2 = cv2.imread("icon/resize/----.png", cv2.IMREAD_GRAYSCALE)
     image = np.fromfile(imgP, np.uint8)
     image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
-    #image = cv2.imread(imgP, cv2.IMREAD_GRAYSCALE) 한글경로에러
+    #image = cv2.imread(imgP, cv2.IMREAD_GRAYSCALE) 한글경로에러 발생 가능.
 
     result = cv2.matchTemplate(image, tmpA, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
@@ -130,7 +130,7 @@ def main(changxy=1):
     gozero, goback = (714, 683), (716, 66)
     gibo1, gibo6 = 160, 940
     gibox, giboy = (left_up[0]+right_down[0])//2, (gibo6 - gibo1)//5 # 한 화면에 뜨는 기보가 6개가 아니라 n개면 //(n-1)로 하면 됨. 
-    gumto = (960, 740) #검출모드에서 @@@@나 -가 검출되면 눌러서 깨끗한 버전 캡쳐할 용도
+    gumto = (960, 740) #검출모드에서 한수쉼이(@@@@)나 댓글(----)가 검출되면 눌러서 깨끗한 버전 캡쳐할 용도
     gumtoLU = (684,200) #검토창의 좌상단
     gumtoRD = (1237,752) #검토창의 우하단
     speed = 0.55 #기보 넘기는 속도
@@ -167,6 +167,12 @@ def main(changxy=1):
         print("6번째 기보 : ", end = "")
         xy()
         gibo6 = y1
+        print("숫자 좌상단 : ", end = "")
+        xy()
+        numx = (x1, y1)
+        print("숫자 우하단 : ", end = "")
+        xy()
+        numy = (x1, y1)
         print("검토 : ", end = "")
         xy()
         gumto = (x1, y1)
@@ -239,7 +245,7 @@ def main(changxy=1):
 
                 num += 1
 
-        #print("캡쳐 완료!")
+            #print("캡쳐 완료!")
             m.position = goback
             m.click(mouse_left)
             time.sleep(1)
