@@ -174,7 +174,7 @@ chk = 1
 save = 0
 tmp = ''
 save = int(input("1.fen 저장\n저장하지 않고 진행\n : "))
-chk = int(input("1. pgn\n2. gib\n"))
+chk = int(input("1. pgn\n2. gib\n12. 둘 다\n"))
 
 while chk==1 or chk==2 or chk==12:
 
