@@ -9,7 +9,7 @@ from pynput import mouse
 from PIL import Image
 import numpy as np
 
-def tryint(maxn=100, s=""):
+def tryint(maxn=100, s=""):#숫자 판별
     try:
         a = int(input(s))
         if 0 <= a <= maxn or a == -1:
@@ -21,7 +21,7 @@ def tryint(maxn=100, s=""):
         print("숫자를 입력해 주세요.")
         return tryint(maxn, s)
 
-def tryint2(txt, least=30):
+def tryint2(txt, least=30):#숫자 판별2
     txt = txt.replace('\n','')
     try:
         a = int(txt)
@@ -34,20 +34,19 @@ def tryint2(txt, least=30):
         print("숫자 인식 불가. 입력값 :", txt)
         return 0
 
-def xy():
+def xy():#마우스 클릭 시, 좌표 제공
     def on_click(x, y, button, pressed):
         if pressed:
             global x1, y1
             x1, y1 = int(x), int(y)
             print('Button: %s, Position: (%s, %s), Pressed: %s ' % (button, x, y, pressed))
-        #return posX,posY
-        #if not pressed:
+            
             return False
         
     with mouse.Listener(on_click=on_click) as listener:
         listener.join()
 
-def chkdup(input_list):
+def chkdup(input_list):#중복되는 이름이 입력된 경우 번호를 달아줌
     # 입력된 값들을 딕셔너리로 변환하여 각 값의 출현 횟수를 세기
     counts = {}
     for item in input_list:
@@ -63,7 +62,7 @@ def chkdup(input_list):
             renamed_list.append(item)
     return renamed_list
 
-def preprocess_image(image_path):
+def preprocess_image(image_path):#이미지 전처리
     # 이미지 로드
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     
@@ -82,15 +81,15 @@ def preprocess_image(image_path):
     
     return processed_image
 
-def capture_screenshot(region, output_path):
+def capture_screenshot(region, output_path):# region 영역 스크린샷
     with mss.mss() as sct:
         img = sct.grab(region)
         mss.tools.to_png(img.rgb, img.size, output=output_path)
 
 def chkmode(imgP):
     tmpA = cv2.imread("icon/resize/@@@@.png", cv2.IMREAD_GRAYSCALE)
-    tmpM = cv2.imread("icon/resize/----2.png", cv2.IMREAD_GRAYSCALE)
-    tmpM2 = cv2.imread("icon/resize/----.png", cv2.IMREAD_GRAYSCALE)
+    tmpM = cv2.imread("icon/resize/----2.png", cv2.IMREAD_GRAYSCALE)# 댓글 아이콘 생성 애니메이션 중 캡쳐되는 경우를 위해 사용.
+    tmpM2 = cv2.imread("icon/resize/----.png", cv2.IMREAD_GRAYSCALE)# 생성 완료된 댓글 아이콘. 마지막 장면에 댓글이 있을 경우, 첫 장면으로 가도 댓글 아이콘이 남아있는 경우가 있기 때문에 적용해야만 한다.
     image = np.fromfile(imgP, np.uint8)
     image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
     #image = cv2.imread(imgP, cv2.IMREAD_GRAYSCALE) 한글경로에러 발생 가능.
@@ -126,11 +125,11 @@ def main(changxy=1):
     right_down = (1237, 650)
     n_ext = (1109, 679)
     numx, numy = (930,655), (980,680)
-    #namex, namey = (766,99), (1136, 1020)
+    #namex, namey = (766,99), (1136, 1020) # 이름 영역으로 OCR을 통해 자동으로 입력할 수 있도록 하려 했으나, 느리고 정확도가 낮아서 폐기.
     gozero, goback = (714, 683), (716, 66)
     gibo1, gibo6 = 160, 940
-    gibox, giboy = (left_up[0]+right_down[0])//2, (gibo6 - gibo1)//5 # 한 화면에 뜨는 기보가 6개가 아니라 n개면 //(n-1)로 하면 됨. 
-    gumto = (960, 740) #검출모드에서 한수쉼이(@@@@)나 댓글(----)가 검출되면 눌러서 깨끗한 버전 캡쳐할 용도
+    gibox, giboy = (left_up[0]+right_down[0])//2, (gibo6 - gibo1)//5 # 한 화면에 뜨는 기보가 6개가 아니라 n개면 (gibo6 - gibo1)//(n-1)로 수정. 
+    gumto = (960, 740) #검출모드에서 한수쉼(@@@@)이나 댓글(----)이 검출되면 눌러서 깨끗한 버전 캡쳐할 용도
     gumtoLU = (684,200) #검토창의 좌상단
     gumtoRD = (1237,752) #검토창의 우하단
     speed = 0.55 #기보 넘기는 속도
@@ -140,8 +139,8 @@ def main(changxy=1):
     mouse_left = mouse.Button.left
     
     #'''
-    #처음 세팅 받아서 하드코딩 용도.
-    #그냥 xy()를 일일이 호출해서 설정하는 게 더 빠를지도...?
+    # 처음 세팅 받아서 하드코딩 용도. 이후 각주처리하는 것을 권장.
+    # 놓친 좌표가 있다면 xy()를 호출해서 설정하는 것이 빠르다.
     if changxy==1:
         print("default : 0, change : 1")
         changxy = tryint(1,"좌표 변경 : ")
@@ -193,9 +192,10 @@ def main(changxy=1):
         #'height': namey[1] - namex[1]}
     numera = {'top': numx[1], 'left': numx[0], 'width': numy[0] - numx[0],
         'height': numy[1] - numx[1]}
-        
+
+    print("기보들의 이름은 ', '(쉼표+띄어쓰기)로 구분합니다.") # 숙지했다면 각주처리
     giboname = chkdup(input("생성할 기보의 이름을 입력하세요.").split(", "))
-    #pagelist = input("각 기보의 장 수를 입력하세요.").split(", ")
+    #pagelist = input("각 기보의 장 수를 입력하세요.").split(", ") # OCR을 하지 않고 그냥 각 기보들이 몇장인지 일일이 확인하는 걸 좋아하는 분들을 위하여...
     
     for name in giboname:
         #page = int(pagelist[_])
@@ -209,7 +209,7 @@ def main(changxy=1):
         capture_screenshot(numera, 'tmpnum.png')
         processed_image = preprocess_image('tmpnum.png')
         cv2.imwrite('tmpnum.png', processed_image)
-        page = pytesseract.image_to_string('tmpnum.png',config='--oem 3 --psm 6 outputbase digits')
+        page = pytesseract.image_to_string('tmpnum.png',config='--oem 3 --psm 6 outputbase digits')# 숫자만 검출...하도록 한 것인데 가끔가다가 알파벳이 튀어나오는 경우가 있다.
         page = tryint2(page, least)+1
         if page <= least:
             m.position = goback
@@ -233,11 +233,11 @@ def main(changxy=1):
                 if chkmode(f'{title}/img_{str(num).zfill(4)}.png') == 1:
                     m.position = gumto
                     m.click(mouse_left)
-                    time.sleep(1)#화면 전환 대기
+                    time.sleep(1)# 화면 전환 대기
                     capture_screenshot(region2, f'{title}/img_{str(num).zfill(4)}.png')
                     m.position = goback
                     m.click(mouse_left)
-                    time.sleep(1)#화면 전환 대기
+                    time.sleep(1)# 화면 전환 대기
                 
                 # 페이지 넘기기
                 m.position = n_ext
