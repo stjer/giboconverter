@@ -2,16 +2,12 @@ import os
 import time
 import mss
 import cv2
-#import mss.tools
-#import pyautogui
-#import easyocr
 import pytesseract
 pytesseract.pytesseract.tesseract_cmd = "C:\\Program Files\\Tesseract-OCR\\tesseract"
 
 from pynput import mouse
-#from pynput.keyboard import Key, Controller
 from PIL import Image
-
+import numpy as np
 
 def tryint(maxn=100, s=""):
     try:
@@ -25,11 +21,11 @@ def tryint(maxn=100, s=""):
         print("숫자를 입력해 주세요.")
         return tryint(maxn, s)
 
-def tryint2(txt):
+def tryint2(txt, least=30):
     txt = txt.replace('\n','')
     try:
         a = int(txt)
-        if 30<a<=200:
+        if least<a<=200:
             return a
         else :
             print("범위 외. 입력값 :",a)
@@ -91,77 +87,108 @@ def capture_screenshot(region, output_path):
         img = sct.grab(region)
         mss.tools.to_png(img.rgb, img.size, output=output_path)
 
+def chkmode(imgP):
+    tmpA = cv2.imread("icon/resize/@@@@.png", cv2.IMREAD_GRAYSCALE)
+    tmpM = cv2.imread("icon/resize/----2.png", cv2.IMREAD_GRAYSCALE)
+    tmpM2 = cv2.imread("icon/resize/----.png", cv2.IMREAD_GRAYSCALE)
+    image = np.fromfile(imgP, np.uint8)
+    image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
+    #image = cv2.imread(imgP, cv2.IMREAD_GRAYSCALE) 한글경로에러
+
+    result = cv2.matchTemplate(image, tmpA, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+    threshold = 0.7
+    # 일치율 (0과 1 사이의 값) # 아이콘 생성 애니메이션 때문에 감지되지 않는 경우들이 생겨서 조금 넉넉하게 잡음.
+    # 그런데도 검출되지 않는 것들이 종종 생겨서 그냥 speed를 0.6? 정도로 조정하는 게 맞을지도?
+    if max_val > threshold:
+        print("한수쉼 감지")
+        return 1
+    result = cv2.matchTemplate(image, tmpM, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+    if max_val > threshold:
+        print("댓글 감지")
+        return 1
+    result = cv2.matchTemplate(image, tmpM2, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+    if max_val > threshold:
+        print("댓글 감지")
+        return 1
+    else :
+        return 0
+
 x1 = 0
 y1 = 0
 
 def main(changxy=1):
     
-    #reader = easyocr.Reader(['ko','en'])
-    #result = reader.readtext(img, detail = 0)
-    '''흐름 : 전체 찍고
-s= []
-for i in result:
-    if i.find("단 ")!=-1 or i.find("급 ")!=-1:
-        s.append(i)
-를 통해서 상대 닉네임들 추출. #승급, 승단시 걸리는지는 아직 ㅁㄹ #승급했다는 걸로 통일되서 출력됨.
-걸림. 예시. ['13급 기권', '14급 기권', '14급 기권', '16급 부심', '14급 별간외봉', '시간 전 , 16급 김가네 마작']
-하지만 if 0<=i.find("단 ")<=3 or 0<=i.find("급 ")<=3: 으로 바꾸면 걸러짐.
-그렇게 하고 보정값(gibo 클릭)을 넣은 게 좋을지 말지는 고민이 됨... detail 부분을 어떻게 처리하면 그런 위치도 나오려나??
-
-이후 gibo1~6을 클릭
-숫자 영역 찍고 img = tmp.png 같은 거로 저장.
-num = result = reader.readtext(img, detail = 0)[0]
-num = tryint2(num)
-if num <= 30: 이면 다음 기보로, 아니면 num+=1
-
-'''
-    #num = 1
-    posX1, posY1, posX2, posY2, posX3, posY3 = 684, 98, 1237, 650, 1109, 679
+    left_up = (684, 98)
+    right_down = (1237, 650)
+    n_ext = (1109, 679)
     numx, numy = (930,655), (980,680)
-    #namex = (766,99)
-    #namey = (1136, 1020)
+    #namex, namey = (766,99), (1136, 1020)
     gozero, goback = (714, 683), (716, 66)
     gibo1, gibo6 = 160, 940
-    gibox, giboy = 960, (gibo6 - gibo1)//5
-    #page = 201
-    speed = 0.45
+    gibox, giboy = (left_up[0]+right_down[0])//2, (gibo6 - gibo1)//5 # 한 화면에 뜨는 기보가 6개가 아니라 n개면 //(n-1)로 하면 됨. 
+    gumto = (960, 740) #검출모드에서 @@@@나 -가 검출되면 눌러서 깨끗한 버전 캡쳐할 용도
+    gumtoLU = (684,200) #검토창의 좌상단
+    gumtoRD = (1237,752) #검토창의 우하단
+    speed = 0.55 #기보 넘기는 속도
+    least = 23 #일정 수순 이하 기보는 무시
     region = {}
     m = mouse.Controller()
     mouse_left = mouse.Button.left
-    #kb_control = Controller()
+    
+    #'''
+    #처음 세팅 받아서 하드코딩 용도.
+    #그냥 xy()를 일일이 호출해서 설정하는 게 더 빠를지도...?
     if changxy==1:
         print("default : 0, change : 1")
         changxy = tryint(1,"좌표 변경 : ")
     if changxy == 1:
+        print("첫 기보 : ", end = "")
+        xy()
+        gibo1 = y1
         print("좌상단 : ", end = "")
         xy()#left_up
-        posX1, posY1 = x1,y1
+        left_up = (x1,y1)
         print("우하단 : ", end = "")
         xy()#right_down
-        posX2, posY2 = x1,y1
+        right_down = (x1,y1)
         print("다음 : ", end = "")
         xy()#next
-        posX3, posY3 = x1,y1
-        print("맨뒤로 : ", end = "")
+        n_ext = (x1,y1)
+        print("맨앞으로 : ", end = "")
         xy()#gozero
         gozero = (x1, y1)
         print("뒤로가기 : ", end = "")
         xy()#goback
         goback = (x1, y1)
-    # The screen part to capture
-    region = {'top': posY1, 'left': posX1, 'width': posX2 - posX1,
-        'height': posY2 - posY1}
+        print("6번째 기보 : ", end = "")
+        xy()
+        gibo6 = y1
+        print("검토 : ", end = "")
+        xy()
+        gumto = (x1, y1)
+        print("좌상단 : ", end = "")
+        xy()#left_up
+        gumtoLU = (x1,y1)
+        print("우하단 : ", end = "")
+        xy()#right_down
+        gumtoRD = (x1,y1)
+    #'''
+    
+    # 스크린샷 범위
+    region = {'top': left_up[1], 'left': left_up[0], 'width': right_down[0] - left_up[0],
+        'height': right_down[1] - left_up[1]}
+    region2 = {'top': gumtoLU[1], 'left': gumtoLU[0], 'width': gumtoRD[0] - gumtoLU[0],
+        'height': gumtoRD[1] - gumtoLU[1]}
     #namera = {'top': namex[1], 'left': namex[0], 'width': namey[0] - namex[0],
         #'height': namey[1] - namex[1]}
     numera = {'top': numx[1], 'left': numx[0], 'width': numy[0] - numx[0],
         'height': numy[1] - numx[1]}
-    #changp = tryint(1,"페이지 수 변경 : ")
-    #if changp == 1:
-        #page = tryint(201, "페이지 수 : ")
         
     giboname = chkdup(input("생성할 기보의 이름을 입력하세요.").split(", "))
-    #giboname = chkdup(giboname)
-    # 이 기능은 num 값을 받아올 수 있는 기능을 구현한 뒤에 적용이 가능함.
     #pagelist = input("각 기보의 장 수를 입력하세요.").split(", ")
     
     for name in giboname:
@@ -177,8 +204,8 @@ if num <= 30: 이면 다음 기보로, 아니면 num+=1
         processed_image = preprocess_image('tmpnum.png')
         cv2.imwrite('tmpnum.png', processed_image)
         page = pytesseract.image_to_string('tmpnum.png',config='--oem 3 --psm 6 outputbase digits')
-        page = tryint2(page)+1
-        if page <= 30:
+        page = tryint2(page, least)+1
+        if page <= least:
             m.position = goback
             m.click(mouse_left)
             time.sleep(1)
@@ -196,10 +223,19 @@ if num <= 30: 이면 다음 기보로, 아니면 num+=1
 
                 # 캡쳐하기
                 capture_screenshot(region, f'{title}/img_{str(num).zfill(4)}.png')
+                # 검출모드인데 살짝 아쉬움이 있긴 함. (speed가 빠르면 애니메이션으로 인해 검출이 잘 되지 않음.)
+                if chkmode(f'{title}/img_{str(num).zfill(4)}.png') == 1:
+                    m.position = gumto
+                    m.click(mouse_left)
+                    time.sleep(1)#화면 전환 대기
+                    capture_screenshot(region2, f'{title}/img_{str(num).zfill(4)}.png')
+                    m.position = goback
+                    m.click(mouse_left)
+                    time.sleep(1)#화면 전환 대기
+                
                 # 페이지 넘기기
-                m.position = (posX3, posY3)
+                m.position = n_ext
                 m.click(mouse_left)
-            
 
                 num += 1
 
