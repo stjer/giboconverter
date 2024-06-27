@@ -10,7 +10,7 @@ left_up = settings["left_up"]
 right_down = settings["right_down"]
 
 # 배율 계산
-scale = (left_up[1] - right_down[1]) / 552
+scale = (right_down[1] - left_up[1]) / 552
 
 # icon/resize 폴더 경로
 folder_path = 'icon/resize'
