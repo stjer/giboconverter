@@ -2,7 +2,7 @@ import sys
 import os
 import json
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QDesktopWidget, QTabWidget, QLineEdit, QSlider, QDoubleSpinBox, QMessageBox)
+                             QDesktopWidget, QTabWidget, QLineEdit, QSlider, QDoubleSpinBox, QMessageBox, QCheckBox, QSpinBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from pynput import mouse
 import time
@@ -11,9 +11,13 @@ import cv2
 import pytesseract
 pytesseract.pytesseract.tesseract_cmd = "C:\\Program Files\\Tesseract-OCR\\tesseract"
 
-#from pynput import mouse
 from PIL import Image
 import numpy as np
+
+#업데이트 : ocr로 안된 부분을 알려주고, 따로 돌릴 수 있도록 num 옆에 체크든 뭐든 신설해서 숫자 받고 하면 되려나?
+#그러면 그냥 생짜 캡쳐기도 지워도 될 듯?
+
+
 
 def tryint(maxn=100, s=""):#숫자 판별
     try:
@@ -134,7 +138,9 @@ class CoordinateGetter(QWidget):
         self.current_listener = None
         self.giboname = ""
         self.speed = 0.55
-
+        self.use_gibo_number = False
+        self.gibo_number = 0
+        
     def load_settings(self):
         self.coordinate_dict = {
             'left_up': ['판의 좌상단', None],
@@ -172,26 +178,7 @@ class CoordinateGetter(QWidget):
         
         # Create tab widget
         self.tab_widget = QTabWidget()
-        main_layout.addWidget(self.tab_widget)
-        
-        # Coordinates tab
-        coord_tab = QWidget()
-        coord_layout = QVBoxLayout()
-        
-        for name, (title, coords) in self.coordinate_dict.items():
-            hbox = QHBoxLayout()
-            button = QPushButton(f'{title}')
-            button.clicked.connect(lambda _, n=name: self.get_coordinate(n))
-            hbox.addWidget(button)
-            
-            label = QLabel('Not set' if coords is None else f'({coords[0]}, {coords[1]})')
-            setattr(self, f'{name}_label', label)
-            hbox.addWidget(label)
-            
-            coord_layout.addLayout(hbox)
-
-        coord_tab.setLayout(coord_layout)
-        self.tab_widget.addTab(coord_tab, "설정")
+        main_layout.addWidget(self.tab_widget)        
         
         # Settings tab
         settings_tab = QWidget()
@@ -199,7 +186,7 @@ class CoordinateGetter(QWidget):
         
         # Giboname input
         giboname_layout = QHBoxLayout()
-        giboname_label = QLabel("Giboname:")
+        giboname_label = QLabel("기보 명 :")
         self.giboname_input = QLineEdit()
         giboname_layout.addWidget(giboname_label)
         giboname_layout.addWidget(self.giboname_input)
@@ -207,7 +194,7 @@ class CoordinateGetter(QWidget):
         
         # Speed slider
         speed_layout = QHBoxLayout()
-        speed_label = QLabel("Speed:")
+        speed_label = QLabel("속도 간격 :")
         self.speed_slider = QSlider(Qt.Horizontal)
         self.speed_slider.setMinimum(30)
         self.speed_slider.setMaximum(150)
@@ -226,9 +213,40 @@ class CoordinateGetter(QWidget):
         speed_layout.addWidget(self.speed_slider)
         speed_layout.addWidget(self.speed_spinbox)
         settings_layout.addLayout(speed_layout)
+
+        gibo_number_layout = QHBoxLayout()
+        self.gibo_number_checkbox = QCheckBox("OCR인식이 작동하지 않을 시 사용, 기보의 장 수:")
+        self.gibo_number_input = QSpinBox()
+        self.gibo_number_input.setRange(0, 200)
+        self.gibo_number_input.setEnabled(False)
+        
+        self.gibo_number_checkbox.stateChanged.connect(self.toggle_gibo_number_input)
+        
+        gibo_number_layout.addWidget(self.gibo_number_checkbox)
+        gibo_number_layout.addWidget(self.gibo_number_input)
+        settings_layout.addLayout(gibo_number_layout)
         
         settings_tab.setLayout(settings_layout)
         self.tab_widget.addTab(settings_tab, "실행")
+
+        # Coordinates tab
+        coord_tab = QWidget()
+        coord_layout = QVBoxLayout()
+        
+        for name, (title, coords) in self.coordinate_dict.items():
+            hbox = QHBoxLayout()
+            button = QPushButton(f'{title}')
+            button.clicked.connect(lambda _, n=name: self.get_coordinate(n))
+            hbox.addWidget(button)
+            
+            label = QLabel('Not set' if coords is None else f'({coords[0]}, {coords[1]})')
+            setattr(self, f'{name}_label', label)
+            hbox.addWidget(label)
+            
+            coord_layout.addLayout(hbox)
+
+        coord_tab.setLayout(coord_layout)
+        self.tab_widget.addTab(coord_tab, "설정")
 
         # Start and Save buttons
         button_layout = QHBoxLayout()
@@ -268,8 +286,18 @@ class CoordinateGetter(QWidget):
         self.speed_slider.setValue(int(value * 100))
         self.speed = speed
 
+    def toggle_gibo_number_input(self, state):
+        self.gibo_number_input.setEnabled(state == Qt.Checked)
+
     def start_main(self):
         self.giboname = self.giboname_input.text()
+        self.use_gibo_number = self.gibo_number_checkbox.isChecked()
+        self.gibo_number = self.gibo_number_input.value()
+
+        if self.use_gibo_number and (self.gibo_number < 0 or self.gibo_number > 200):
+            QMessageBox.warning(self, "Invalid Input", "Gibo number must be between 0 and 200.")
+            return
+
         self.run_main()
 
     def run_main(self):
@@ -299,24 +327,30 @@ class CoordinateGetter(QWidget):
         mouse_left = mouse.Button.left
         giboname = chkdup(self.giboname.split(", "))
         
+        
         for name in giboname:
             if name[0]=='0':
                 continue
-            num = 1
-            m.position = (gibox, self.coordinate_dict['gibo1'][1][1] + giboy*giboname.index(name))
-            time.sleep(0.5)
-            m.click(mouse_left)
-            time.sleep(1)
-            capture_screenshot(numera, 'tmpnum.png')
-            processed_image = preprocess_image('tmpnum.png')
-            cv2.imwrite('tmpnum.png', processed_image)
-            page = pytesseract.image_to_string('tmpnum.png',config='--oem 3 --psm 6 outputbase digits')# 숫자만 검출...하도록 한 것인데 가끔가다가 알파벳이 튀어나오는 경우가 있다.
-            page = tryint2(page, least)+1
-            if page <= least:
-                m.position = self.coordinate_dict['goback'][1]
+            if self.use_gibo_number:
+                print(f"Using gibo number: {self.gibo_number}")
+                num = 1
+                page = self.gibo_number+1
+            else:
+                num = 1
+                m.position = (gibox, self.coordinate_dict['gibo1'][1][1] + giboy*giboname.index(name))
+                time.sleep(0.5)
                 m.click(mouse_left)
                 time.sleep(1)
-                continue
+                capture_screenshot(numera, 'tmpnum.png')
+                processed_image = preprocess_image('tmpnum.png')
+                cv2.imwrite('tmpnum.png', processed_image)
+                page = pytesseract.image_to_string('tmpnum.png',config='--oem 3 --psm 6 outputbase digits')# 숫자만 검출...하도록 한 것인데 가끔가다가 알파벳이 튀어나오는 경우가 있다.
+                page = tryint2(page, least)+1
+                if page <= least:
+                    m.position = self.coordinate_dict['goback'][1]
+                    m.click(mouse_left)
+                    time.sleep(1)
+                    continue
             title = f"gibo_img/{name}"
             if not(os.path.isdir(title)):
                 os.mkdir(os.path.join(title))
