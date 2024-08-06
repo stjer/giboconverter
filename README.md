@@ -15,4 +15,4 @@ pgn2gib는 제작을 하고자했지만, i0i9, i10i9, Rxi9, Ri0i9, Ri10i9, Rxi0i
 
 -/-
 
-사용이 만족스러우셨다면 qr.kakaopay.com/FQKXAdOpU 혹은 toss.me/sjrt0 으로 소정의 금액을 후원해주신다면 감사히 받겠습니다.
+사용이 만족스러우셨다면 qr.kakaopay.com/FQKXAdOpU 혹은 경남은행 2070164420507 으로 소정의 금액을 후원해주신다면 감사히 받겠습니다.
